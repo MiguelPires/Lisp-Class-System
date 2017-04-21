@@ -4,9 +4,10 @@
 
 	`(progn 
 		(defun ,(intern (concatenate 'string "MAKE-" class-string)) (&key ,@slots)
-			(vector ,@slots))
-
+			(vector (list ,class-string) ,@slots))
 		,@(map 'list (lambda (slot) (create-getter class-name slot (position slot slots))) slots)
+		(defun ,(intern (concatenate 'string class-string "?")) (,class-name) 
+			(numberp (position (string-upcase (symbol-name ',class-name)) (aref ,class-name 0) :test #'equal)))
 	))
 )
 
@@ -19,5 +20,5 @@
 	`(defun ,(intern (concatenate 'string (string-upcase (symbol-name class-name)) 
 											"-" 
 											(symbol-name slot))) (,class-name)
-				(aref ,class-name ,slot-index)))
+				(aref ,class-name (+ ,slot-index 1))))
 
