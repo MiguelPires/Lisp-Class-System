@@ -29,6 +29,9 @@
 		; create getters
 		,@(map 'list (lambda (slot) (create-getter class-name slot)) slot-list)
 
+		; create setters
+		,@(map 'list (lambda (slot) (create-setter class-name slot)) slot-list)		
+
 		; create recognizer
 		(defun ,(intern (concatenate 'string class-string "?")) (,class-name) 
 			(let ((class-list (multiple-value-bind (value _) 
@@ -49,13 +52,22 @@
 ;;
 ;; class-name: the name of the class being defined
 ;; slot: the name of the slot for which the getter is to be created
-;; slot-index: the slot's index in the internal representation
 (defun create-getter (class-name slot)
 	`(defun ,(intern (concatenate 'string (string-upcase (symbol-name class-name)) 
 											"-" (symbol-name slot))) (,class-name)
-				(multiple-value-bind (value bool) 
-					(gethash ',slot ,class-name)
-					value)))
+		(multiple-value-bind (value bool) 
+			(gethash ',slot ,class-name)
+				value)))
+
+;; Description: Creates a setter for the slot "slot"
+;;
+;; class-name: the name of the class being defined
+;; slot: the name of the slot for which the getter is to be created
+(defun create-setter (class-name slot)
+	`(defun ,(intern (concatenate 'string "SET-" (string-upcase (symbol-name class-name)) 
+											"-" (symbol-name slot))) (,class-name new-value)
+		(setf (gethash ',slot ,class-name) new-value)))
+
 
 (defun create-slot (symbol)
 	`(setf (gethash ',symbol object) ,symbol))
