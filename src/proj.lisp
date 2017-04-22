@@ -43,7 +43,7 @@
 		,@(map 'list (lambda (slot) (create-setter class-name slot)) slot-list)		
 
 		; create recognizer
-		,(create-recognizer class-string class-name class-list)
+		,(create-recognizer class-string class-name)
 
 		; create getter of all slot names
 		(defun ,(intern (concatenate 'string class-string "-SLOTS")) ()
@@ -77,8 +77,7 @@
 ;;
 ;; class-string: the name of the class being defined
 ;; class-name: the symbol of the class being defined
-;; class-list: a list of the class's superclasses and class itself
-(defun create-recognizer (class-string class-name class-list)
+(defun create-recognizer (class-string class-name)
 	`(defun ,(intern (concatenate 'string class-string "?")) (,class-name) 
 		(let ((class-list (multiple-value-bind (value _) 
 						(gethash 'classes ,class-name)
@@ -93,8 +92,9 @@
 (defun create-getter (class-name slot)
 	`(defun ,(intern (concatenate 'string (string-upcase (symbol-name class-name)) 
 											"-" (symbol-name slot))) (,class-name)
-		(multiple-value-bind (value bool) 
+		(multiple-value-bind (value _) 
 			(gethash ',slot ,class-name)
+			(declare (ignore _))
 				value)))
 
 ;; Description: Creates a setter for the slot "slot"
@@ -111,7 +111,8 @@
 ;; class-list: classes declared in the class definition
 (defun build-superclass-list (class-list)
 	(let ((all-classes (rest class-list))
-		(previous-list nil))
+		  (previous-list nil)
+		  (superclasses nil))
 		
 		(do ()
 			((equal previous-list all-classes) all-classes)
