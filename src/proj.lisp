@@ -20,11 +20,7 @@
 
 	`(progn 
 		; create constructor
-		(defun ,(intern (concatenate 'string "MAKE-" class-string)) (&key ,@slot-list)
-			(let ((object (make-hash-table :test 'equal)))
-				(setf (gethash 'classes object) ',class-list)
-				,@(map 'list (lambda (slot) (create-slot slot)) slot-list)
-				object))
+		,(create-constructor class-string class-list slot-list)
 
 		; create getters
 		,@(map 'list (lambda (slot) (create-getter class-name slot)) slot-list)
@@ -33,12 +29,7 @@
 		,@(map 'list (lambda (slot) (create-setter class-name slot)) slot-list)		
 
 		; create recognizer
-		(defun ,(intern (concatenate 'string class-string "?")) (,class-name) 
-			(let ((class-list (multiple-value-bind (value _) 
-								(gethash 'classes ,class-name)
-								(declare (ignore _))
-								value))) 
-			(numberp (position ',class-name class-list :test #'equal))))
+		,(create-recognizer class-string class-name class-list)
 
 		; create getter of all slot names
 		(defun ,(intern (concatenate 'string class-string "-SLOTS")) ()
@@ -48,6 +39,32 @@
 		(defun ,(intern (concatenate 'string class-string "-SUPERCLASSES")) ()
 			',(rest class-list)))))	
 
+
+;; Description: Creates a constructor for class "class-string"
+;;
+;; class-string: the name of the class being defined
+;; class-list: a list of the class's superclasses and class itself
+;; slot-list: the slots the class must hold (both the superclasses' slots and its own)
+(defun create-constructor (class-string class-list slot-list)
+	`(defun ,(intern (concatenate 'string "MAKE-" class-string)) (&key ,@slot-list)
+		(let ((object (make-hash-table :test 'equal)))
+			(setf (gethash 'classes object) ',class-list)
+			,@(map 'list (lambda (slot) (create-slot slot)) slot-list)
+			object)))
+
+;; Description: Creates a recognizer for class "class-name"
+;;
+;; class-string: the name of the class being defined
+;; class-name: the symbol of the class being defined
+;; class-list: a list of the class's superclasses and class itself
+(defun create-recognizer (class-string class-name class-list)
+	`(defun ,(intern (concatenate 'string class-string "?")) (,class-name) 
+		(let ((class-list (multiple-value-bind (value _) 
+						(gethash 'classes ,class-name)
+						(declare (ignore _))
+						value))) 
+			(numberp (position ',class-name class-list :test #'equal))))
+)
 ;; Description: Creates a getter for the slot "slot"
 ;;
 ;; class-name: the name of the class being defined
