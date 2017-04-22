@@ -57,6 +57,14 @@
 		(defun ,(intern (concatenate 'string class-string "-DEFAULTS")) ()
 			',init-list))))	
 
+
+(defmacro def-method (method-name class (&rest arguments) &rest body)
+	`(defun ,method-name (,@arguments) 
+		(if (not (,(intern (concatenate 'string (string-upcase (symbol-name class)) 
+											"?")) ,(first arguments))) 
+			(error "Method '~A' can only be applied to instances of class '~A'~%" ',method-name ',class))
+		,@body))
+
 ;; Description: Creates a constructor for class "class-string"
 ;;
 ;; class-string: the name of the class being defined
