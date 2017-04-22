@@ -1,3 +1,5 @@
 *.FASL
+*.fas
+*.lib
 *.fasl
 *.lisp-temp
