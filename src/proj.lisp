@@ -1,3 +1,7 @@
+;; Description: Implements the "def-class" macro
+;;
+;; classes: either the class name or a list of the class and superclasses
+;; slots: the class slots; may have default initializations (e.g., "age :initform 22")
 (defmacro def-class (classes &rest slots)
 	(let ((class-string nil)
 		  (class-name nil)
@@ -57,7 +61,12 @@
 		(defun ,(intern (concatenate 'string class-string "-DEFAULTS")) ()
 			',init-list))))	
 
-
+;; Description: Implements the "def-method" macro
+;;
+;; method-name: the method name
+;; class: the class to which the method belongs to
+;; arguments: the method's arguments; contains at least one argument, the class instance
+;; body: the implementation of the method
 (defmacro def-method (method-name class (&rest arguments) &rest body)
 	`(defun ,method-name (,@arguments) 
 		(if (not (,(intern (concatenate 'string (string-upcase (symbol-name class)) 
