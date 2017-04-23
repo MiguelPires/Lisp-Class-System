@@ -64,15 +64,19 @@
 ;; Description: Implements the "def-method" macro
 ;;
 ;; method-name: the method name
-;; class: the class to which the method belongs to
-;; arguments: the method's arguments; contains at least one argument, the class instance
+;; arguments: the method's arguments; the first argument is mandatory and consists
+;; of a list with the instance argument and the class name (e.g., "(p1 person)")
 ;; body: the implementation of the method
-(defmacro def-method (method-name class (&rest arguments) &rest body)
-	`(defun ,method-name (,@arguments) 
-		(if (not (,(intern (concatenate 'string (string-upcase (symbol-name class)) 
-											"?")) ,(first arguments))) 
-			(error "Method '~A' can only be applied to instances of class '~A'~%" ',method-name ',class))
-		,@body))
+(defmacro def-method (method-name (&rest arguments) &rest body)
+	(let* ((class-instance (first (first arguments)))
+		  (parsed-args (append (list class-instance) (rest arguments)))
+		  (class (second (first arguments))))
+		
+		`(defun ,method-name (,@parsed-args) 
+			(if (not (,(intern (concatenate 'string (string-upcase (symbol-name class)) 
+												"?")) ,class-instance)) 
+				(error "Method '~A' can only be applied to instances of class '~A'~%" ',method-name ',class))
+			,@body)))
 
 ;; Description: Creates a constructor for class "class-string"
 ;;
