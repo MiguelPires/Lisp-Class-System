@@ -1,3 +1,4 @@
+
 ;; Description: Implements the "def-class" macro
 ;;
 ;; classes: either the class name or a list of the class and superclasses
@@ -137,13 +138,13 @@
 		
 		(do ()
 			((equal previous-list all-classes) all-classes)
-
 			(setf previous-list all-classes)
-			(dolist (class all-classes)
+
+			(dolist (class previous-list)
 				(setf superclasses (funcall (symbol-function (intern (concatenate 'string 
 																	(string-upcase (symbol-name class))
 																	"-SUPERCLASSES")))))
-				(nconc all-classes superclasses))
+				(setf all-classes (append all-classes superclasses)))
 			(setf all-classes (remove-duplicates all-classes)))))
 
 ;; Description: Returns a list of default initializers for the class list
