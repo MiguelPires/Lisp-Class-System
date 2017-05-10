@@ -1,3 +1,4 @@
+(defparameter *methods-def* (make-hash-table :test 'equal))
 
 ;; Description: Implements the "def-class" macro
 ;;
@@ -16,7 +17,7 @@
 	; builds the initializers list
 	(dolist (arg slots) 
 		(cond ((eq arg ':initform) (setf next-init t))
-			  (next-init (setf init-list (append init-list (list init-arg arg))))
+			  (next-init (setf init-list (append init-list (list init-arg arg))) (setf next-init nil))
 			  (t (setf init-arg arg) (setf next-init nil) (setf parsed-slots (append parsed-slots (list arg))))))
 
 	; parses the declared (super)classes
@@ -34,45 +35,48 @@
 
 	; add the superclasses' initializers
 	(setf init-list (append init-list (build-superclass-defaults (rest class-list))))
-
 	(setf class-string (string-upcase (symbol-name class-name)))
 
 	`(progn 
 		; create constructor
 		,(create-constructor class-string class-list slot-list init-list)
-
 		; create getters
 		,@(map 'list (lambda (slot) (create-getter class-name slot)) slot-list)
-
 		; create setters
 		,@(map 'list (lambda (slot) (create-setter class-name slot)) slot-list)		
-
 		; create recognizer
 		,(create-recognizer class-string class-name)
-
 		; create getter of all slot names
 		(defun ,(intern (concatenate 'string class-string "-SLOTS")) ()
 			',parsed-slots)
-
 		; create getter of superclasses
 		(defun ,(intern (concatenate 'string class-string "-SUPERCLASSES")) ()
 			',(rest class-list))
-
 		; create a getter for default initializations
 		(defun ,(intern (concatenate 'string class-string "-DEFAULTS")) ()
-			',init-list))))	
+			',init-list)
+		t)))	
 
-;; Description: Implements the "def-method" macro
-;;
-;; method-name: the method name
-;; arguments: the method's arguments; the first argument is mandatory and consists
-;; of a list with the instance argument and the class name (e.g., "(p1 person)")
-;; body: the implementation of the method
+(defmacro def-generic (method-name (&rest arguments))		
+	;(format t "Making generic for ~A with args ~A~%" method-name arguments)
+	(setf (gethash method-name *methods-def*) (list method-name 'arguments))
+	; por aqui o defun cuja implementação vai chamar as funções definidas pelo def-method
+	nil)
+
 (defmacro def-method (method-name (&rest arguments) &rest body)
-	(let* ((class-instance (first (first arguments)))
-		  (parsed-args (append (list class-instance) (rest arguments)))
-		  (class (second (first arguments))))
+	(let ((class-instance nil)
+		  (parsed-args nil)
+		  (class nil))
 		
+		(cond ((listp (first arguments)) 
+					(setf class-instance (first (first arguments)))
+					(parsed-args (append (list class-instance) (rest arguments)))
+					(class (second (first arguments))))
+			  ((eq (first arguments) ':before) 
+			  		(error "Qualifier :before not implemented"))
+			  ((eq (first arguments) ':after) 
+			  		(error "Qualifier :after not implemented")))
+
 		`(defun ,method-name (,@parsed-args) 
 			(if (not (,(intern (concatenate 'string (string-upcase (symbol-name class)) 
 												"?")) ,class-instance)) 
