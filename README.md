@@ -4,7 +4,7 @@ This project implements a class system for Lisp through a set of macros. The imp
 * Classes 
 * Default Slot Initializers
 * Multiple Inheritance
-* Methods
+* Multiple-Dispatch Methods
 * Generics
 
 ## Classes
@@ -63,3 +63,31 @@ t
 <b>> (being? p)</b>
 t
 </code></pre>
+
+## Generic Functions
+The *def-generic* macro allows you specify a function's name and parameters, omitting the implementation. This functionality is complemented by multiple-dispatch methods, described in the next section.
+
+<pre><code>
+<b>> (def-generic sum (p1 p2))</b>
+SUM
+</code></pre>
+
+## Multiple-dispatch Methods
+The *def-method* macro allows you specify a generic function's implementation for a specific set of parameter specializers:
+<pre><code>
+<b>> (def-method sum ((person p1) (person p2)
+        (format t "Adding two people's ages")
+        (+ (person-age p1) (person-age p2))) </b>
+SUM
+<b>> (def-method sum ((person p1) (being b2))
+        (format t "Adding a person and a being's age")
+        (+ (person-age p1) (being-age b2)))</b>
+SUM
+<b>> (sum (make-person :age 1) (make-person :age 2)) </b>
+"Adding two people's ages"
+3
+<b>> (sum (make-person :age 1) (make-being :age 2)) </b>
+"Adding a person and a being's age"
+3
+</code></pre>
+Note that in the first example, both methods would be applicable since *person* is a subclass of *being*. However, the class system invokes the most specific of all the applicable methods. This is the coherent with the standard method combination of the Common Lisp Object System.
