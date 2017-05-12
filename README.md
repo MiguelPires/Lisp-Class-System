@@ -9,58 +9,57 @@ This project implements a class system for Lisp through a set of macros. The imp
 
 ## Classes
 The *def-class* macro allows you to create a class complete with default constructor, getters, setters, recognizers. For instance, to create a 
-class *person* with instance variables (or slots) *name* and *age*:
+class *person* with slots *name* and *age* and respective default methods do:
 
-`(def-class person name age)`
-
-To use the default methods do:
-```
->(setf p (make-person :age 50 :name John))
+<pre> <code>
+<b>> (def-class person name age)</b>
+(...)
+<b>> (setf p (make-person :age 50 :name John))</b>
 #S(...) 
->(person-age p)
+<b>> (person-age p)</b>
 50
->(set-person-name p "Bill")
+<b>> (set-person-name p "Bill")</b>
 "Bill"
->(person-name p)
+<b>> (person-name p)</b>
 "Bill"
->(person? p)
+<b>> (person? p)</b>
 t
-```
+</code> </pre>
 
 ## Default Slot Initializers
 It's possible to provide default initializer forms to determine the value of a form if none is provided:
 
-```
->(def-class person name age :initform (+ 10 1))
+<pre> <code>
+<b>> (def-class person name age :initform (+ 10 1))</b>
 t
->(setf p (make-person :name "John"))
+<b>> (setf p (make-person :name "John"))</b>
 #S(...)
->(person-age p)
+<b>> (person-age p)</b>
 11
->(person-name p)
+<b>> (person-name p)</b>
 "John"
-```
+</code> </pre>
 
 ## Multiple Inheritance
 The *def-class* macro also allows you to inherit from multiple classes:
 
-```
->(def-class thing)
+<pre> <code>
+<b>> (def-class thing)</b>
 t
->(def-class being age)
+<b>> (def-class being age)</b>
+t 
+<b>> (def-class (person being thing) name)</b>
 t
->(def-class (person being thing) name)
-t
->(setf p (make-person :name "John" :age "22"))
+<b>> (setf p (make-person :name "John" :age "22"))</b>
 #S(...)
->(person-age p)
+<b>> (person-age p)</b>
 11
->(being-age p)
+<b>> (being-age p)</b>
 11
->(person-name p)
+<b>> (person-name p)</b>
 "John"
->(person? p)
+<b>> (person? p)</b>
 t
->(being? p)
+<b>> (being? p)</b>
 t
-```
+</code></pre>
