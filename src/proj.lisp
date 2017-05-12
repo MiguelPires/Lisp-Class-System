@@ -90,23 +90,21 @@
 				(setf best-meth-arg (nth arg-index (second best-meth)))
 				(setf other-meth-arg (nth arg-index (second other-meth)))
 				(setf arg-classes (nth arg-index classes))
-
 				;(format t "Best Meth: ~A~%" best-meth)
 				;(format t "Other Meth: ~A~%" other-meth)
 
 				(block inner 
 					(cond 
-						((and (member best-meth-arg arg-classes) (equal best-meth-arg other-meth-arg)) 
+						((or (eq best-meth-arg t) (and (member best-meth-arg arg-classes) (equal best-meth-arg other-meth-arg)))
 											(setf found-class t) 
 											;(format t "Same arg ~A ~%" best-meth-arg)
 											(return-from inner)) 
 						(t
 							; search for a class that matches the argument
 						  	(dolist (class arg-classes)
-						  		;(format t "best-meth-arg: ~A~%" best-meth-arg)
-						  		;(format t "other-meth-arg: ~A~%" other-meth-arg)
-						  		;(format t "class: ~A~%" class)
-
+						  	;	(format t "best-meth-arg: ~A~%" best-meth-arg)
+						  	;	(format t "other-meth-arg: ~A~%" other-meth-arg)
+						  	;	(format t "class: ~A~%" class)
 						  		(cond ((equal best-meth-arg class) (setf found-class t) 
 						  											;(format t "Found ~A~%" best-meth-arg) 
 						  											(return-from inner))
@@ -115,9 +113,7 @@
 						  			  								;(format t "Found ~A~%" best-meth-arg)
 ;						  			  								(format t "Setting best to ~A~%" other-meth) 
 						  			  								(return-from inner)))
-						  		(setf found-class nil))))
-					; we know at least one method applies
-					)
+						  		(setf found-class nil)))))
 				(setf arg-index (1+ arg-index)))))
 
 		(if (not found-class) (error "Method '~A' can't be applied to arguments of classes ~A~%" ',method-name classes))
