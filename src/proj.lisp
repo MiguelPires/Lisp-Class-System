@@ -1,4 +1,7 @@
 (defparameter *methods-def* (make-hash-table :test 'equal))
+(defparameter *methods-def-before* (make-hash-table :test 'equal))
+(defparameter *methods-def-after* (make-hash-table :test 'equal))
+(defparameter *methods-id* (make-hash-table :test 'equal))
 
 ;; Description: Implements the "def-class" macro
 ;;
@@ -58,30 +61,109 @@
 		t)))	
 
 (defmacro def-generic (method-name (&rest arguments))		
-	;(format t "Making generic for ~A with args ~A~%" method-name arguments)
-	(setf (gethash method-name *methods-def*) (list method-name 'arguments))
-	; por aqui o defun cuja implementação vai chamar as funções definidas pelo def-method
-	nil)
+	`(defun ,method-name ,arguments
+		(let ((classes nil)
+			(stored-methods nil)
+			(best-meth nil)
+			(other-meth nil)
+			(arg-index 0)
+			(arg-classes nil))
 
+		,@(map 'list (lambda (arg) `(setf classes (append classes (list (gethash 'classes ,arg))))) arguments)
+
+		;(format t "A: ~A~%" ',arguments)
+		;(format t "Arg classes: ~A~%" classes)
+
+		(setf stored-methods (gethash ',method-name *methods-def*))
+		;(format t "stored-methods: ~A~%" stored-methods)
+
+		; compare methods
+		(setf found-class nil)
+		(setf best-meth (nth 0 stored-methods))
+		(dolist (other-meth stored-methods)
+			;(format t "Trying method ~A~%" other-meth)
+			(setf arg-index 0)
+
+			; compare methods argument by argument
+			(block outer (loop 
+				(when (eq arg-index (length classes)) (return-from outer))
+				(setf best-meth-arg (nth arg-index (second best-meth)))
+				(setf other-meth-arg (nth arg-index (second other-meth)))
+				(setf arg-classes (nth arg-index classes))
+
+				;(format t "Best Meth: ~A~%" best-meth)
+				;(format t "Other Meth: ~A~%" other-meth)
+
+				(block inner 
+					(cond 
+						((and (member best-meth-arg arg-classes) (equal best-meth-arg other-meth-arg)) 
+											(setf found-class t) 
+											;(format t "Same arg ~A ~%" best-meth-arg)
+											(return-from inner)) 
+						(t
+							; search for a class that matches the argument
+						  	(dolist (class arg-classes)
+						  		;(format t "best-meth-arg: ~A~%" best-meth-arg)
+						  		;(format t "other-meth-arg: ~A~%" other-meth-arg)
+						  		;(format t "class: ~A~%" class)
+
+						  		(cond ((equal best-meth-arg class) (setf found-class t) 
+						  											;(format t "Found ~A~%" best-meth-arg) 
+						  											(return-from inner))
+						  			  ((equal other-meth-arg class) (setf found-class t) 
+						  			  								(setf best-meth other-meth) 
+						  			  								;(format t "Found ~A~%" best-meth-arg)
+;						  			  								(format t "Setting best to ~A~%" other-meth) 
+						  			  								(return-from inner)))
+						  		(setf found-class nil))))
+					; we know at least one method applies
+					)
+				(setf arg-index (1+ arg-index)))))
+
+		(if (not found-class) (error "Method '~A' can't be applied to arguments of classes ~A~%" ',method-name classes))
+		(funcall (intern (first best-meth)) ,@arguments))))
+
+
+;; Description: Allows for the definition of a method along with parameter specifiers 
+;; e.g., (def-method sum ((person p1) (person p2)) 
+;;				(sum (person-age p1) (person-age p2)))
+;;
+;; method-name: the method's name
+;; arguments: the list where each element may be an argument or a list with 
+;;	 both the class and the argument
+;; body: the method body
 (defmacro def-method (method-name (&rest arguments) &rest body)
-	(let ((class-instance nil)
-		  (parsed-args nil)
-		  (class nil))
+	(let ((arg-classes nil)
+		  (arg-instance nil)
+		  (class nil)
+		  (method-id nil)
+		  (new-method-name nil))
 		
-		(cond ((listp (first arguments)) 
-					(setf class-instance (first (first arguments)))
-					(parsed-args (append (list class-instance) (rest arguments)))
-					(class (second (first arguments))))
-			  ((eq (first arguments) ':before) 
+		(cond 	((eq (first arguments) ':before) 
 			  		(error "Qualifier :before not implemented"))
-			  ((eq (first arguments) ':after) 
-			  		(error "Qualifier :after not implemented")))
+			  	((eq (first arguments) ':after) 
+			  		(error "Qualifier :after not implemented"))
+				(t	
+					(dolist (arg arguments)
+						(if (listp arg) 
+								(progn (setf arg-classes (append arg-classes (list (first arg))))
+									(setf arg-instance (append arg-instance (list (second arg)))))
+								(progn (setf arg-classes (append arg-classes '(t)))
+									(setf arg-instance (append arg-instance (list arg)))))
+					)
+					
+					; obtain method id
+					(if (eq (gethash method-name *methods-id*) nil) 
+							(setf method-id 1)
+							(setf method-id (1+ (gethash method-name *methods-id*))))
+					
+					(setf (gethash method-name *methods-id*) method-id)
+					(setf new-method-name (concatenate 'string (string-upcase (symbol-name method-name)) "-" (write-to-string method-id)))
+					(setf (gethash method-name *methods-def*) (append (gethash method-name *methods-def*) (list (list new-method-name arg-classes)))))
 
-		`(defun ,method-name (,@parsed-args) 
-			(if (not (,(intern (concatenate 'string (string-upcase (symbol-name class)) 
-												"?")) ,class-instance)) 
-				(error "Method '~A' can only be applied to instances of class '~A'~%" ',method-name ',class))
-			,@body)))
+			  )
+
+		`(defun ,(intern new-method-name) (,@arg-instance) ,@body)))
 
 ;; Description: Creates a constructor for class "class-string"
 ;;
