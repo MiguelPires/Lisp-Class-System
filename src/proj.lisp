@@ -68,25 +68,22 @@
 			(other-meth nil)
 			(arg-index 0)
 			(arg-classes nil)
-			(before-app-methods nil))
+			(before-app-methods nil)
+			(after-app-methods nil)
+			(return-value nil))
 
-		;(format t "AAA: ~A~%" (list ,@arguments))
-		(setf before-app-methods (call-before-methods ',method-name (list ,@arguments)))
+		; call :before methods
+		(setf before-app-methods (gather-aux-methods ',method-name (list ,@arguments) "before"))
 		(map 'list (lambda (app-meth) (funcall (intern (first app-meth)) ,@arguments)) before-app-methods)
 
 		,@(map 'list (lambda (arg) `(setf classes (append classes (list (gethash 'classes ,arg))))) arguments)
 
-		;(format t "A: ~A~%" ',arguments)
-		;(format t "Arg classes: ~A~%" classes)
-
 		(setf stored-methods (gethash ',method-name *methods-def*))
-		;(format t "stored-methods: ~A~%" stored-methods)
 
 		; compare methods
 		(setf found-class nil)
 		(setf best-meth (nth 0 stored-methods))
 		(dolist (other-meth stored-methods)
-			;(format t "Trying method ~A~%" other-meth)
 			(setf arg-index 0)
 
 			; compare methods argument by argument
@@ -95,44 +92,42 @@
 				(setf best-meth-arg (nth arg-index (second best-meth)))
 				(setf other-meth-arg (nth arg-index (second other-meth)))
 				(setf arg-classes (nth arg-index classes))
-				;(format t "Best Meth: ~A~%" best-meth)
-				;(format t "Other Meth: ~A~%" other-meth)
 
 				(block inner 
 					(cond 
 						((or (eq best-meth-arg t) (and (member best-meth-arg arg-classes) (equal best-meth-arg other-meth-arg)))
 							(setf found-class t) 
-							;(format t "Same arg ~A ~%" best-meth-arg)
 							(return-from inner)) 
-						(t
-							; search for a class that matches the argument
+						(t  ; search for a class that matches the argument
 						  	(dolist (class arg-classes)
-						  	;	(format t "best-meth-arg: ~A~%" best-meth-arg)
-						  	;	(format t "other-meth-arg: ~A~%" other-meth-arg)
-						  	;	(format t "class: ~A~%" class)
 						  		(cond ((equal best-meth-arg class) (setf found-class t) 
-						  											;(format t "Found ~A~%" best-meth-arg) 
 						  											(return-from inner))
 						  			  ((equal other-meth-arg class) (setf found-class t) 
 						  			  								(setf best-meth other-meth) 
-						  			  								;(format t "Found ~A~%" best-meth-arg)
-;						  			  								(format t "Setting best to ~A~%" other-meth) 
 						  			  								(return-from inner)))
 						  		(setf found-class nil)))))
 				(setf arg-index (1+ arg-index)))))
 
 		(if (not found-class) (error "Method '~A' can't be applied to arguments of classes ~A~%" ',method-name classes))
-		(funcall (intern (first best-meth)) ,@arguments))))
+		; the return of the complete effective method
+		(setf return-value (funcall (intern (first best-meth)) ,@arguments))
 
+		; call :after methods
+		(setf after-app-methods (gather-aux-methods ',method-name (list ,@arguments) "after"))
+		(map 'list (lambda (app-meth) (funcall (intern (first app-meth)) ,@arguments)) after-app-methods)
+		return-value)))
 
-(defun call-before-methods (method-name arguments)
+(defun gather-aux-methods (method-name arguments aux-type)
 	(let ((stored-methods)
 		  (classes)
 		  (applicable-methods)
-		  (meth-arg-classes))
+		  (meth-arg-classes)
+		  (stored-methods-varname nil))
 
 		(map 'list (lambda (arg) (setf classes (append classes (list (gethash 'classes arg))))) arguments)
-		(setf stored-methods (gethash method-name *methods-def-before*))
+		(setf stored-methods-varname (eval (intern (string-upcase (concatenate 'string "*methods-def-" aux-type "*")))))
+		
+		(setf stored-methods (gethash method-name stored-methods-varname))
 
 		; obtain applicable methods
 		(dolist (meth stored-methods)
@@ -146,21 +141,8 @@
 					(incf arg-index))
 
 				(setf applicable-methods (append applicable-methods (list meth)))))
-
-		(format t "Methods: ~A~%" applicable-methods)
 		applicable-methods))
 
-#| (defun sort-applicable-methods (call-classes applicable-methods)
-	(let ((sorted-app-methods nil)
-		(best-meth (first applicable-methods)))
-
-		(dolist (meth applicable-methods)
-			(if )
-			)
-
-		))
- |#
- 
 ;; Description: Allows for the definition of a method along with parameter specifiers 
 ;; e.g., (def-method sum ((person p1) (person p2)) 
 ;;				(sum (person-age p1) (person-age p2)))
