@@ -67,7 +67,12 @@
 			(best-meth nil)
 			(other-meth nil)
 			(arg-index 0)
-			(arg-classes nil))
+			(arg-classes nil)
+			(before-app-methods nil))
+
+		;(format t "AAA: ~A~%" (list ,@arguments))
+		(setf before-app-methods (call-before-methods ',method-name (list ,@arguments)))
+		(map 'list (lambda (app-meth) (funcall (intern (first app-meth)) ,@arguments)) before-app-methods)
 
 		,@(map 'list (lambda (arg) `(setf classes (append classes (list (gethash 'classes ,arg))))) arguments)
 
@@ -96,9 +101,9 @@
 				(block inner 
 					(cond 
 						((or (eq best-meth-arg t) (and (member best-meth-arg arg-classes) (equal best-meth-arg other-meth-arg)))
-											(setf found-class t) 
-											;(format t "Same arg ~A ~%" best-meth-arg)
-											(return-from inner)) 
+							(setf found-class t) 
+							;(format t "Same arg ~A ~%" best-meth-arg)
+							(return-from inner)) 
 						(t
 							; search for a class that matches the argument
 						  	(dolist (class arg-classes)
@@ -120,6 +125,42 @@
 		(funcall (intern (first best-meth)) ,@arguments))))
 
 
+(defun call-before-methods (method-name arguments)
+	(let ((stored-methods)
+		  (classes)
+		  (applicable-methods)
+		  (meth-arg-classes))
+
+		(map 'list (lambda (arg) (setf classes (append classes (list (gethash 'classes arg))))) arguments)
+		(setf stored-methods (gethash method-name *methods-def-before*))
+
+		; obtain applicable methods
+		(dolist (meth stored-methods)
+			(block inner 
+				(setf arg-index 0)
+				(dolist (arg-classes classes)
+					(setf meth-arg (nth arg-index (second meth)))
+					(if (not (member meth-arg arg-classes)) 
+							(return-from inner))
+
+					(incf arg-index))
+
+				(setf applicable-methods (append applicable-methods (list meth)))))
+
+		(format t "Methods: ~A~%" applicable-methods)
+		applicable-methods))
+
+#| (defun sort-applicable-methods (call-classes applicable-methods)
+	(let ((sorted-app-methods nil)
+		(best-meth (first applicable-methods)))
+
+		(dolist (meth applicable-methods)
+			(if )
+			)
+
+		))
+ |#
+ 
 ;; Description: Allows for the definition of a method along with parameter specifiers 
 ;; e.g., (def-method sum ((person p1) (person p2)) 
 ;;				(sum (person-age p1) (person-age p2)))
@@ -133,31 +174,38 @@
 		  (arg-instance nil)
 		  (class nil)
 		  (method-id nil)
-		  (new-method-name nil))
-		
-		(cond 	((eq (first arguments) ':before) 
-			  		(error "Qualifier :before not implemented"))
-			  	((eq (first arguments) ':after) 
-			  		(error "Qualifier :after not implemented"))
-				(t	
-					(dolist (arg arguments)
-						(if (listp arg) 
-								(progn (setf arg-classes (append arg-classes (list (first arg))))
-									(setf arg-instance (append arg-instance (list (second arg)))))
-								(progn (setf arg-classes (append arg-classes '(t)))
-									(setf arg-instance (append arg-instance (list arg)))))
-					)
-					
-					; obtain method id
-					(if (eq (gethash method-name *methods-id*) nil) 
-							(setf method-id 1)
-							(setf method-id (1+ (gethash method-name *methods-id*))))
-					
-					(setf (gethash method-name *methods-id*) method-id)
-					(setf new-method-name (concatenate 'string (string-upcase (symbol-name method-name)) "-" (write-to-string method-id)))
-					(setf (gethash method-name *methods-def*) (append (gethash method-name *methods-def*) (list (list new-method-name arg-classes)))))
+		  (new-method-name nil)
+		  (before nil)
+		  (after nil))
 
-			  )
+		(cond 	((eq arguments ':before)
+					(setf before t) 
+					(setf arguments (first body))
+					(setf body (rest body)))
+			  	((eq arguments ':after) 
+			  		(setf after t) 
+			  		(setf arguments (first body))
+			  		(setf body (rest body))))
+
+		(dolist (arg arguments)
+			(if (listp arg) 
+					(progn (setf arg-classes (append arg-classes (list (first arg))))
+						(setf arg-instance (append arg-instance (list (second arg)))))
+					(progn (setf arg-classes (append arg-classes '(t)))
+						(setf arg-instance (append arg-instance (list arg))))))
+		
+		; obtain method id
+		(if (eq (gethash method-name *methods-id*) nil) 
+				(setf method-id 1)
+				(setf method-id (1+ (gethash method-name *methods-id*))))
+		
+		(setf (gethash method-name *methods-id*) method-id)
+		(setf new-method-name (concatenate 'string (string-upcase (symbol-name method-name)) "-" (write-to-string method-id)))
+
+		(cond (before (setf (gethash method-name *methods-def-before*) (append (gethash method-name *methods-def-before*) (list (list new-method-name arg-classes)))))
+			  (after (setf (gethash method-name *methods-def-after*) (append (gethash method-name *methods-def-after*) (list (list new-method-name arg-classes)))))
+			  (t (setf (gethash method-name *methods-def*) (append (gethash method-name *methods-def*) (list (list new-method-name arg-classes))))))
+		;(setf (gethash method-name *methods-def*) (append (gethash method-name *methods-def*) (list (list new-method-name arg-classes))))
 
 		`(defun ,(intern new-method-name) (,@arg-instance) ,@body)))
 
