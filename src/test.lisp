@@ -1,6 +1,6 @@
 ;(compile-file "proj.lisp")
 
-(load "proj.lisp")
+(load "load.lisp")
 
 (def-class person
 	name
