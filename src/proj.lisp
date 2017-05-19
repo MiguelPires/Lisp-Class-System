@@ -175,11 +175,11 @@
 					(when (eq arg-index (length classes)) (return-from outer))
 					(setf best-meth-arg (nth arg-index (second best-meth)))
 					(setf other-meth-arg (nth arg-index (second other-meth)))
-					(setf arg-classes (nth arg-index classes))
+					(setf arg-classes (append (nth arg-index classes) (list t)))
 
 					(block inner 
 						(cond 
-							((or (eq best-meth-arg t) (and (member best-meth-arg arg-classes) (equal best-meth-arg other-meth-arg)))
+							((and (member best-meth-arg arg-classes) (equal best-meth-arg other-meth-arg))
 								(setf found-class t) 
 								(return-from inner)) 
 							(t  ; search for a class that matches the argument
@@ -226,7 +226,7 @@
 				(setf arg-index 0)
 				(dolist (arg-classes classes)
 					(setf meth-arg (nth arg-index (second meth)))
-					(if (not (member meth-arg arg-classes)) 
+					(if (not (member meth-arg (append arg-classes (list t)))) 
 							(return-from inner))
 
 					(incf arg-index))
@@ -274,7 +274,7 @@
 
 		(cond (before (setf previous-list (gethash method-name *methods-def-before*)))
 			  (after (setf previous-list (gethash method-name *methods-def-after*)))
-			  (t (gethash method-name *methods-def*)))
+			  (t (setf previous-list (gethash method-name *methods-def*))))
 
 		; updated same named function, if any
 		(dolist (element previous-list)
