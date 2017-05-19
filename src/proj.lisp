@@ -1,7 +1,6 @@
 (defparameter *methods-def* (make-hash-table :test 'equal))
 (defparameter *methods-def-before* (make-hash-table :test 'equal))
 (defparameter *methods-def-after* (make-hash-table :test 'equal))
-(defparameter *methods-id* (make-hash-table :test 'equal))
 
 ;; Description: Implements the "def-class" macro
 ;;
@@ -247,10 +246,11 @@
 (defmacro def-method (method-name (&rest arguments) &rest body)
 	(let ((arg-classes nil)
 		  (arg-instance nil)
-		  (method-id nil)
 		  (new-method-name nil)
 		  (before nil)
-		  (after nil))
+		  (after nil)
+		  (previous-list nil)
+		  (updated-list))
 
 		(cond 	((eq arguments ':before)
 					(setf before t) 
@@ -268,16 +268,20 @@
 					(progn (setf arg-classes (append arg-classes '(t)))
 						(setf arg-instance (append arg-instance (list arg))))))
 		
-		; obtain method id
-		(if (eq (gethash method-name *methods-id*) nil) 
-				(setf method-id 1)
-				(setf method-id (1+ (gethash method-name *methods-id*))))
-		
-		(setf (gethash method-name *methods-id*) method-id)
-		(setf new-method-name (concatenate 'string (string-upcase (symbol-name method-name)) "-" (write-to-string method-id)))
+		(setf new-method-name (concatenate 'string (string-upcase (symbol-name method-name)) "-" 
+																  (cond (before "BEFORE-") (after "AFTER-")) 
+																  (write-to-string arg-classes)))
 
-		(cond (before (setf (gethash method-name *methods-def-before*) (append (gethash method-name *methods-def-before*) (list (list new-method-name arg-classes)))))
-			  (after (setf (gethash method-name *methods-def-after*) (append (gethash method-name *methods-def-after*) (list (list new-method-name arg-classes)))))
-			  (t (setf (gethash method-name *methods-def*) (append (gethash method-name *methods-def*) (list (list new-method-name arg-classes))))))
+		(cond (before (setf previous-list (gethash method-name *methods-def-before*)))
+			  (after (setf previous-list (gethash method-name *methods-def-after*)))
+			  (t (gethash method-name *methods-def*)))
+
+		; updated same named function, if any
+		(dolist (element previous-list)
+			(if (not (equal new-method-name (first element))) (setf updated-list (append updated-list (list element)))))
+
+		(cond (before (setf (gethash method-name *methods-def-before*) (append updated-list (list (list new-method-name arg-classes)))))
+			  (after (setf (gethash method-name *methods-def-after*) (append updated-list (list (list new-method-name arg-classes)))))
+			  (t (setf (gethash method-name *methods-def*) (append updated-list (list (list new-method-name arg-classes))))))
 
 		`(defun ,(intern new-method-name) (,@arg-instance) ,@body)))
