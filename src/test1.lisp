@@ -1,5 +1,4 @@
-;(load "C:/Users/Miguel/Dropbox/IST/pava/project/src/load.lisp")
-(load "load.lisp")
+(load "proj.lisp")
 
 (defmacro make-assertions (&body assertions)
   `(progn ,@(mapcar #'(lambda (x) `(assert ,x))
